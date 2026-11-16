@@ -8,6 +8,8 @@ import java.io.OutputStream
 import java.util.UUID
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 
  data class Chapter(
     val id: String = UUID.randomUUID().toString(),
