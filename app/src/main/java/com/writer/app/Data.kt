@@ -129,166 +129,43 @@ private fun HomeScreen(
         }
         Divider(Modifier.padding(vertical = 12.dp))
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("目录", fontSize = 20.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-            TextButton(onClick = { onDialog("新建分卷", "", "新分卷") }) { Text("＋ 新建分卷") }
-        }
-        LazyColumn(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-            items(book.volumes.filter { !it.deleted }, key = { it.id }) { volume ->
-                Card(Modifier.fillMaxWidth()) {
-                    Column(Modifier.padding(10.dp)) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-             
-@Composable
-private fun EditorScreen(
-    store: Store,
-    prefs: Prefs,
-    id: String,
-    onBack: () -> Unit,
-    fg: Color,
-    muted: Color
-) {
-    val chapter = store.book.volumes
-        .flatMap { it.chapters }
-        .firstOrNull { it.id == id }
 
-    var field by remember(id) {
-        mutableStateOf(TextFieldValue(store.text(id)))
-    }
-
-    val undoStack = remember(id) {
-        mutableStateListOf<TextFieldValue>()
-    }
-
-    val redoStack = remember(id) {
-        mutableStateListOf<TextFieldValue>()
-    }
-
-    val content = field.text
-    val wordCount = content.count { !it.isWhitespace() }
-    val lineCount = content.count { it == '\n' } + 1
-
-    LaunchedEffect(id, content) {
-        delay(650)
-        store.saveText(id, content)
-    }
-
-    LaunchedEffect(id) {
-        while (true) {
-            delay(60_000)
-            store.addFocus(id, 1)
-        }
-    }
-
-    Column(
-        Modifier
-            .fillMaxSize()
-            .statusBarsPadding()
-            .imePadding()
-            .padding(horizontal = 18.dp)
-    ) {
-        Row(
-            Modifier
-                .fillMaxWidth()
-                .padding(vertical = 6.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            TextButton(onClick = {
-                store.saveText(id, content)
-                onBack()
-            }) {
-                Text("← 返回")
-            }
-
-            Text(
-                chapter?.title ?: "写作",
-                Modifier.weight(1f),
-                fontWeight = FontWeight.Bold,
-                fontSize = 17.sp
-            )
-
-            TextButton(
-                enabled = undoStack.isNotEmpty(),
-                onClick = {
-                    redoStack.add(field)
-                    field = undoStack.removeAt(
-                        undoStack.lastIndex
-                    )
-                }
-            ) {
-                Text("↶")
-            }
-
-            TextButton(
-                enabled = redoStack.isNotEmpty(),
-                onClick = {
-                    undoStack.add(field)
-                    field = redoStack.removeAt(
-                        redoStack.lastIndex
-                    )
-                }
-            ) {
-                Text("↷")
-            }
-
-            TextButton(onClick = {
-                store.saveText(id, content)
-            }) {
-                Text("保存")
-            }
-        }
-
-        Divider()
-
-        BasicTextField(
-            value = field,
-            onValueChange = { newValue ->
-                if (newValue.text != field.text) {
-                    undoStack.add(field)
-
-                    if (undoStack.size > 100) {
-                        undoStack.removeAt(0)
+                            Text(if (volume.collapsed) "▸" else "▾", Modifier.clickable { store.toggle(volume.id) }.padding(5.dp))
+                            Text(volume.title, Modifier.weight(1f).clickable { store.toggle(volume.id) }, fontWeight = FontWeight.Bold)
+                            TextButton(onClick = { onDialog("新建章节", volume.id, "新章节") }) { Text("＋章节") }
+                            TextButton(onClick = { onDialog("重命名分卷", volume.id, volume.title) }) { Text("改名") }
+                            TextButton(onClick = { store.moveVolume(volume.id, true) }) { Text("↑") }
+                            TextButton(onClick = { store.moveVolume(volume.id, false) }) { Text("↓") }
+                        }
+                        if (!volume.collapsed) volume.chapters.filter { !it.deleted }.forEach { chapter ->
+                            Row(Modifier.fillMaxWidth().clickable { onOpen(chapter.id) }.padding(start = 24.dp, top = 5.dp, bottom = 5.dp), verticalAlignment = Alignment.CenterVertically) {
+                                Column(Modifier.weight(1f)) {
+                                    Text(chapter.title)
+                                    Text("${chapter.words} 字", color = muted, fontSize = 11.sp)
+                                }
+                                TextButton(onClick = { store.moveChapter(volume.id, chapter.id, true) }) { Text("↑") }
+                                TextButton(onClick = { store.moveChapter(volume.id, chapter.id, false) }) { Text("↓") }
+                                var menu by remember(chapter.id) { mutableStateOf(false) }
+                                Box {
+                                    TextButton(onClick = { menu = true }) { Text("···") }
+                                    DropdownMenu(expanded = menu, onDismissRequest = { menu = false }) {
+                                        DropdownMenuItem(text = { Text("重命名") }, onClick = { menu = false; onDialog("重命名章节", chapter.id, chapter.title) })
+                                        DropdownMenuItem(text = { Text("导出 TXT") }, onClick = { menu = false; onExport("c", chapter.id) })
+                                        DropdownMenuItem(text = { Text("删除章节") }, onClick = { menu = false; store.delChapter(chapter.id) })
+                                    }
+                                }
+                            }
+                        }
                     }
-
-                    redoStack.clear()
-                }
-
-                field = newValue
-            },
-            modifier = Modifier
-                .fillMaxWidth()
-                .weight(1f)
-                .padding(top = 12.dp),
-            textStyle = androidx.compose.ui.text.TextStyle(
-                color = fg,
-                fontSize = prefs.size.sp,
-                lineHeight = (prefs.size * 1.8f).sp
-            ),
-            decorationBox = { inner ->
-                Box {
-                    if (content.isEmpty()) {
-                        Text(
-                            "开始写下你的故事……",
-                            color = muted.copy(alpha = 0.6f),
-                            fontSize = prefs.size.sp
-                        )
-                    }
-                    inner()
                 }
             }
-        )
-
-        Row(
-            Modifier
-                .fillMaxWidth()
-                .padding(bottom = 3.dp),
-            horizontalArrangement = Arrangement.End
-        ) {
-            Text(
-                "$wordCount 字  ·  $lineCount 行",
-                color = muted.copy(alpha = 0.75f),
-                fontSize = 9.sp
-            )
+        }
+        Divider(Modifier.padding(vertical = 8.dp))
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween) {
+            TextButton(onClick = { onDialog("回收站", "", "") }) { Text("回收站") }
+            TextButton(onClick = { onExport("b", "") }) { Text("导出全书") }
+            TextButton(onClick = onBackup) { Text("备份") }
+            TextButton(onClick = onRestore) { Text("恢复") }
         }
     }
 }
-
