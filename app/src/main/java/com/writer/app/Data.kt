@@ -18,6 +18,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
+import androidx.compose.ui.text.input.TextFieldValue
 
 @Composable
 fun WriterApp(store: Store, prefs: Prefs) {
